@@ -25,28 +25,16 @@ class BasicCollectionViewController: UICollectionViewController {
     var dataSource: UICollectionViewDiffableDataSource<Character, String>!
     
     func createDataSource() {
-        dataSource = UICollectionViewDiffableDataSource<Character, String>(collectionView: collectionView, cellProvider: { collectionView, indexPath, item ->
-            UICollectionViewCell? in
-            
+        dataSource = UICollectionViewDiffableDataSource<Character, String>(collectionView: collectionView) { collectionView, indexPath, item in
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: reuseIdentifier, for: indexPath) as!
             BasicCollectionViewCell
             
             cell.label.text = item
             
             return cell
-        })
-        
-        
-        //This doesn't work
-        dataSource.supplementaryViewProvider = { (collectionView, kind, indexPath) -> UICollectionReusableView? in
-            let header = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: "Header", for: indexPath) as! BasicHeaderView
-            header.headerLabel.text = String(self.initialLetters[indexPath.section])
-            
-            return header
         }
         
         dataSource.apply(filteredItemSnapshot)
-        
     }
     
     var filteredItemSnapshot: NSDiffableDataSourceSnapshot<Character, String> {
@@ -54,7 +42,10 @@ class BasicCollectionViewController: UICollectionViewController {
         
         for section in initialLetters {
             snapshot.appendSections([section])
-            snapshot.appendItems(itemsByInitialLetter[section]!, toSection: nil)
+        }
+        
+        for (key, value) in itemsByInitialLetter {
+            snapshot.appendItems(value, toSection: key)
         }
         
         return snapshot
@@ -62,6 +53,21 @@ class BasicCollectionViewController: UICollectionViewController {
     
     var itemsByInitialLetter: [Character: [String]] = [:]
     var initialLetters: [Character] = []
+    
+    func example() {
+        // Time Complexity (specify how long an operation takes)
+        // let calculation = 1+1 // O
+        // [1,2,3].forEach { $0 * 2 } // O(n)
+        // [1,2,3].forEach { source.index(of: $0) } // O(n^2)
+        
+        var name = "Eric"
+        // You pass the reference to the object instead of just the value
+        inoutFunction(yourName: &name)
+    }
+    
+    func inoutFunction(yourName: inout String) {
+        yourName = "Changes your name"
+    }
     
     func update() {
         if let searchString = searchController.searchBar.text,
@@ -74,18 +80,28 @@ class BasicCollectionViewController: UICollectionViewController {
             filteredItems = items
         }
         
-        //This is don't understand
-        itemsByInitialLetter = filteredItems.reduce([:]) {
-               existing, element in
-                return existing.merging([element.first!: [element]]) { old,
-                   new in
-                    return old + new
-                }
+        itemsByInitialLetter = filteredItems.reduce(into: [:]) { result, element in
+             let firstCharacter = element.first!
+             if var existingElements = result[firstCharacter] {
+                existingElements.append(element)
+                result[firstCharacter] = existingElements
+            } else {
+                result[firstCharacter] = [element]
             }
+        }
         
-            initialLetters = itemsByInitialLetter.keys.sorted()
-        print(initialLetters)
-        print(itemsByInitialLetter)
+        /*
+         itemsByInitialLetter = filteredItems.reduce(into: [:]) { result, element in
+             result[element.first!, default: []].append(element)
+         }
+         
+         itemsByInitialLetter = filteredItems.reduce([:]) { previousResult, element in
+            return previousResult.merging([element.first!: [element]]) { previousValues, newValues in
+                return previousValues + newValues
+            }
+        }*/
+        
+        initialLetters = itemsByInitialLetter.keys.sorted()
                 
         dataSource.apply(filteredItemSnapshot, animatingDifferences: true)
     }
@@ -104,7 +120,7 @@ class BasicCollectionViewController: UICollectionViewController {
 
     private func generateLayout() -> UICollectionViewLayout {
         let itemSize = NSCollectionLayoutSize(
-            widthDimension: .fractionalWidth(1.0),
+            widthDimension: .fractionalWidth(0.2),
             heightDimension: .fractionalHeight(1.0)
         )
         
@@ -120,9 +136,10 @@ class BasicCollectionViewController: UICollectionViewController {
         let group = NSCollectionLayoutGroup.horizontal(
             layoutSize: groupSize,
             subitem: item,
-            count: 1
+            count: 2
         )
-
+        group.interItemSpacing = .some(.fixed(10))
+        
         group.contentInsets = NSDirectionalEdgeInsets(
             top: spacing,
             leading: spacing,
@@ -131,8 +148,7 @@ class BasicCollectionViewController: UICollectionViewController {
         )
 
         let section = NSCollectionLayoutSection(group: group)
-        section.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8)
-        section.interGroupSpacing = 8
+        section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8)
 
         let layout = UICollectionViewCompositionalLayout(section: section)
         
